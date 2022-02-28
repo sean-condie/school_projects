@@ -1,0 +1,81 @@
+# Lab Assignment 2 - Loops and R
+# -----------------------------------------------
+# Student Name:    Sean Condie
+# Course:          FRSC4800 Bioinformatics
+# Submission Date: October 8th, 2021
+# -----------------------------------------------
+
+1.
+
+#!/bin/sh 
+for f in * #loop through each file
+do 
+head -n 3 f #print the first three lines
+done
+
+ANS: For loops are great for iterating over a defined period. While loops are great for performing a task until a condition is met.
+While loops are good at morphing to accomadate diferent data. For loops tend to be more restricted to set lengths. 
+A loop is appropriate to use when there is a specific task that needs to be repeated several times. 
+
+2.
+
+m <- matrix(nrow=100, ncol=50)
+
+for(i in 1:dim(m)[2]) {   #iterate over the columns
+ num <- rpois(100, i)     #generate a new poisson distribution for each column with mean i, column i
+ for(j in 1:dim(m)[1]) {  #iterate over each row in the column
+  m[j,i] = num[j]         #set the row value to one of the values in the distribution
+ }
+}
+
+3.
+i)
+attach(mtcars) #load the dataset
+plot(carb, mpg, col=2) #create the plot
+points(drat, mpg, col=3) #add another variable's points with a different colour
+points(wt, mpg, col=4) #add another variable's points with a different colour
+points(cyl, mpg, col=5) #add another variable's points with a different colour
+
+ii)
+attach(mtcars) #load the dataset
+plot(carb, mpg, pch=2, main = "Multi-Variable Plot", xlab = "") #create the plot with no x label and a title
+points(drat, mpg, pch=3) #add another variable's points with a different symbol
+points(wt, mpg, pch=4) #add another variable's points with a different symbol
+points(cyl, mpg, pch=5) #add another variable's points with a different symbol
+legend("topright", legend = c("carb", "drat", "wt", "cyl"), pch = c(2,3,4,5)) #add a ledgend to the top right of the chart
+
+attach(iris) #load the dataset
+boxplot(Sepal.Width~Species, medcol = "blue") #create a boxplot of sepal width between species with a blue median
+
+ANS: A box plot allows us to visualize quartile information of out data as well as the median and potential outliers.
+
+4.
+i)
+options(scipen=999) #no scientific notation
+library(ggplot2) #load the ggplot library
+data("msleep", package = "ggplot2") #collect the data
+qplot(sleep_total, sleep_rem, data = msleep, shape = factor(vore)) + #create the plot with point shapes according to diet
+  scale_color_brewer(palette = "Set1") + #change the color palet
+  labs(shape = "Diet") #change the legend title
+
+ii)
+options(scipen=999) #no scientific notation
+library(ggplot2) #load the ggplot library
+data("msleep", package = "ggplot2") #collect the data
+qplot(sleep_total, sleep_rem, data = msleep, shape = factor(vore)) + #create the plot with point shapes according to diet
+  scale_color_brewer(palette = "Set1") + #change the color palet
+  labs(shape = "Diet") #change the legend title
+  geom_boxplot() #add boxplots
+
+iii)
+options(scipen=999) #no scientific notation
+library(ggplot2) #load the ggplot library
+data("msleep", package = "ggplot2") #collect the data
+qplot(sleep_total, sleep_rem, data = msleep, shape = factor(vore)) + #create the plot with point shapes according to diet
+  scale_color_brewer(palette = "Set1") + #change the color palet
+  labs(shape = "Diet") #change the legend title
+  geom_boxplot() + #add boxplots
+  facet_wrap(~ vore) #seperate each diet type to it's own graph
+
+ANS: Insectivores seem to have more REM sleep while herbivores seem to have the least REM sleep, as a percentage of total sleep. 
+Carnivores have a large range of total sleep values which seem to be highly correlated to REM sleep. Herbivores REM sleep seems to be less correlated with total sleep.

@@ -1,0 +1,15 @@
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\obj\Debug\net6.0\Assignment1_3020.csproj.AssemblyReference.cache
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\obj\Debug\net6.0\Assignment1_3020.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\obj\Debug\net6.0\Assignment1_3020.AssemblyInfoInputs.cache
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\obj\Debug\net6.0\Assignment1_3020.AssemblyInfo.cs
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\obj\Debug\net6.0\Assignment1_3020.csproj.CoreCompileInputs.cache
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\bin\Debug\net6.0\Assignment1_3020.exe
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\bin\Debug\net6.0\Assignment1_3020.deps.json
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\bin\Debug\net6.0\Assignment1_3020.runtimeconfig.json
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\bin\Debug\net6.0\Assignment1_3020.dll
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\bin\Debug\net6.0\ref\Assignment1_3020.dll
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\bin\Debug\net6.0\Assignment1_3020.pdb
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\obj\Debug\net6.0\Assignment1_3020.dll
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\obj\Debug\net6.0\ref\Assignment1_3020.dll
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\obj\Debug\net6.0\Assignment1_3020.pdb
+C:\Users\seanc\OneDrive\School\y5s2\COIS 3020\Assignments\Assignment 1\Assignment1_3020\Assignment1_3020\obj\Debug\net6.0\Assignment1_3020.genruntimeconfig.cache

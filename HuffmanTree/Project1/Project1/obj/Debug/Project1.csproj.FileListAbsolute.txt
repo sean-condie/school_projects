@@ -1,0 +1,6 @@
+C:\Users\seanc\OneDrive\School\y4s1\COIS 2020\Assignments\Project1\Project1\bin\Debug\Project1.exe.config
+C:\Users\seanc\OneDrive\School\y4s1\COIS 2020\Assignments\Project1\Project1\obj\Debug\Project1.csprojResolveAssemblyReference.cache
+C:\Users\seanc\OneDrive\School\y4s1\COIS 2020\Assignments\Project1\Project1\bin\Debug\Project1.exe
+C:\Users\seanc\OneDrive\School\y4s1\COIS 2020\Assignments\Project1\Project1\bin\Debug\Project1.pdb
+C:\Users\seanc\OneDrive\School\y4s1\COIS 2020\Assignments\Project1\Project1\obj\Debug\Project1.exe
+C:\Users\seanc\OneDrive\School\y4s1\COIS 2020\Assignments\Project1\Project1\obj\Debug\Project1.pdb

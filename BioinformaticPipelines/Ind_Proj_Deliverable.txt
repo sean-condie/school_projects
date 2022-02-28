@@ -1,0 +1,526 @@
+# Independent Project
+# -----------------------------------------------
+# Student Name:    Sean Condie
+# Course:          FRSC4800 Bioinformatics
+# Submission Date: December 20th, 2021
+# -----------------------------------------------
+
+#Collect the data into the same location for ease of use
+ln -s /home/classdata/Ind_Project/samples/* . #collect the sample fastq files
+ln -s /home/classdata/Ind_Project/reference/hg19* . #collect only the hg19 genome fasta and related files
+ln -s /home/classdata/Ind_Project/SNP_Location_OnlineRef.txt #collect the list of SNPs 
+
+#Make a directory to store the read quality data
+mkdir FastQC_Data
+
+#Run fastqc on every .fastq.gz file to generate quality reports for each, specifying the output directory as the previously created directory.
+/home/classdata/Programs/FastQC/fastqc -o FastQC_Data/. *.fastq.gz
+
+#Align the samples to the reference genome, creating a .sam file
+bwa mem hg19.fa HairRE-1_S42_L001_R1_001.fastq.gz HairRE-1_S42_L001_R2_001.fastq.gz > hair_aligned_pairs.sam
+bwa mem WetsalivaCM-1_S39_L001_R1_001.fastq.gz WetsalivaCM-1_S39_L001_R2_001.fastq.gz > saliva_aligned_pairs.sam
+
+#Convert to bam files
+samtools view -bS hair_aligned_pairs.sam > hair_aligned_pairs.bam
+samtools view -bS saliva_aligned_pairs.sam > saliva_aligned_pairs.bam
+
+#Sort the bam files
+samtools sort hair_aligned_pairs.bam -o sorted_hair_aligned_pairs.bam
+samtools sort saliva_aligned_pairs.bam -o sorted_saliva_aligned_pairs.bam
+
+#make bam index files
+samtools index sorted_saliva_aligned_pairs.bam sorted_saliva_aligned_pairs.bai
+samtools index sorted_hair_aligned_pairs.bam sorted_hair_aligned_pairs.bai
+
+#check the stats on the bam files
+samtools flagstat sorted_hair_aligned_pairs.bam
+
+#STDOUT
+130396 + 0 in total (QC-passed reads + QC-failed reads)
+0 + 0 secondary
+286 + 0 supplementary
+0 + 0 duplicates
+128142 + 0 mapped (98.27% : N/A)
+130110 + 0 paired in sequencing
+65055 + 0 read1
+65055 + 0 read2
+125720 + 0 properly paired (96.63% : N/A)
+126832 + 0 with itself and mate mapped
+1024 + 0 singletons (0.79% : N/A)
+1094 + 0 with mate mapped to a different chr
+577 + 0 with mate mapped to a different chr (mapQ>=5)
+
+#check the stats on the bam files
+samtools flagstat sorted_hair_aligned_pairs.bam
+
+#STDOUT
+119677 + 0 in total (QC-passed reads + QC-failed reads)
+0 + 0 secondary
+449 + 0 supplementary
+0 + 0 duplicates
+118548 + 0 mapped (99.06% : N/A)
+119228 + 0 paired in sequencing
+59614 + 0 read1
+59614 + 0 read2
+115968 + 0 properly paired (97.27% : N/A)
+117466 + 0 with itself and mate mapped
+633 + 0 singletons (0.53% : N/A)
+1486 + 0 with mate mapped to a different chr
+847 + 0 with mate mapped to a different chr (mapQ>=5)
+
+#save an ordered list of the read lengths of the fastq files
+#NR stores the current line from the input
+#We use mod (%) to check if it is the second line in the current read (ie. each read is 4 lines, and the remainder is 2) meaning we are reducing the inputs to only the base pair lines
+#Then we print the length of the line
+#The result is a list of read lengths which we pipe into the sort command, sorting by size of the read
+#we then count the number of unique read lengths
+#the output is a text file that has the number of reads in the first column and the length of the read in the second column
+#this is useful to calculate the average read length in R
+zcat WetsalivaCM-1_S39_L001_R1_001.fastq.gz | awk '{if(NR%4==2) print length($1)}' | sort -n | uniq -c > saliva_R1_readlengths.txt
+zcat WetsalivaCM-1_S39_L001_R2_001.fastq.gz | awk '{if(NR%4==2) print length($1)}' | sort -n | uniq -c > saliva_R2_readlengths.txt
+zcat HairRE-1_S42_L001_R1_001.fastq.gz | awk '{if(NR%4==2) print length($1)}' | sort -n | uniq -c > hair_R1_readlengths.txt
+zcat HairRE-1_S42_L001_R2_001.fastq.gz | awk '{if(NR%4==2) print length($1)}' | sort -n | uniq -c > hair_R2_readlengths.txt
+
+#collect the depth of the SNPs to chart in R
+/home/classdata/Programs/bcftools-1.9/bcftools query -f '%CHROM %POS %INFO/DP\n' freebayes_hair_filtered.vcf > freebayes_hair_coverage.txt
+/home/classdata/Programs/bcftools-1.9/bcftools query -f '%CHROM %POS %INFO/DP\n' freebayes_saliva_filtered.vcf > freebayes_saliva_coverage.txt
+/home/classdata/Programs/bcftools-1.9/bcftools query -f '%CHROM %POS %INFO/DP\n' mpileup_hair.bcf > mpileup_hair_coverage.txt
+/home/classdata/Programs/bcftools-1.9/bcftools query -f '%CHROM %POS %INFO/DP\n' mpileup_saliva.bcf > mpileup_saliva_coverage.txt
+
+#the above text files were manually modified to include a header and tab deliniate the columns. The chrom and location information was also changed to the corresponding SNP name. 
+
+#create an input SNP file for mpileup (cut out the online info (using cut) and header (using tail))
+cut -f3 --complement SNP_Location_OnlineRef.txt | tail -n +2 > SNP_input.txt
+
+#use mpileup and call to collect the sample SNPs at the specified locations
+/home/classdata/Programs/bcftools-1.9/bcftools mpileup -Ou -T SNP_input.txt -f hg19.fa sorted_hair_aligned_pairs.bam | /home/classdata/Programs/bcftools-1.9/bcftools call -m -T SNP_input.txt -Ou -o mpileup_hair.bcf
+/home/classdata/Programs/bcftools-1.9/bcftools mpileup -Ou -T SNP_input.txt -f hg19.fa sorted_saliva_aligned_pairs.bam | /home/classdata/Programs/bcftools-1.9/bcftools call -m -T SNP_input.txt -Ou -o mpileup_saliva.bcf
+
+#analyze the 41 SNPs in the hair bcf file
+/home/classdata/Programs/bcftools-1.9/bcftools view mpileup_hair.bcf | grep -v "^##" | cut -f 1,2,4,5,10
+
+#STDOUT
+#CHROM  POS     	REF     ALT     sorted_hair_aligned_pairs.bam
+#chr5    33951693        C       G       1/1:255,255,0
+#chr5    33958959        C       A       1/1:255,255,0
+#chr6    396321  	C       .       0/0
+#chr6    457748  	C       .       0/0
+#chr9    12709305        C       A       1/1:255,255,0
+#chr9    16858084        G       A       0/1:255,0,255
+#chr11   88911696        C       .       0/0
+#chr11   89011046        G       .       0/0
+#chr11   89017961        G       .       0/0
+#chr12   89328335        T       .       0/0
+#chr14   92773663        G       T       0/1:191,0,227
+#chr14   92801203        G       A       0/1:249,0,255
+#chr14   92882826        A       G       0/1:255,0,255
+#chr15   28187772        A       .       0/0
+#chr15   28197037        T       .       0/0
+#chr15   28230318        C       T       0/1:255,0,255
+#chr15   28271775        G       .       0/0
+#chr15   28288121        G       .       0/0
+#chr15   28356859        C       T       0/1:235,0,130
+#chr15   28365618        A       G       0/1:235,0,229
+#chr15   28453215        A       G       0/1:211,0,233
+#chr15   28496195        A       .       0/0
+#chr15   28530182        C       T       0/1:255,0,255
+#chr15   48426484        A       .       0/0
+#chr16   89383725        T       C       1/1:255,255,0
+#chr16   89984378        C       .       0/0
+#chr16   89985753        C       .       0/0
+#chr16   89985844        G       .       0/0
+#chr16   89985918        C       .       0/0
+#chr16   89985940        G       A       0/1:255,0,222
+#chr16   89986091        G       .       0/0
+#chr16   89986117        C       .       0/0
+#chr16   89986122        C       .       0/0
+#chr16   89986130        T       .       0/0
+#chr16   89986144        C       .       0/0
+#chr16   89986154        G       .       0/0
+#chr16   89986546        G       .       0/0
+#chr16   90024206        A       G       0/1:255,0,223
+#chr20   32665748        A       G       1/1:255,255,0
+#chr20   32785212        C       .       0/0
+#chr20   33218090        G       A       1/1:255,255,0
+
+#From this we can compare the genotype (0/0,0/1,1/1) of the sample to the reference/aternate base (0 = ref, 1 = alt) 
+#Chrom   Loc     	Online		Genotype
+#chr5    33951693       rs16891982	GG
+#chr5    33958959       rs28777		AA
+#chr6    396321  	rs12203592	CC
+#chr6    457748  	rs4959270	CC
+#chr9    12709305        rs683		AA
+#chr9    16858084        rs10756819	GA
+#chr11   88911696        rs1042602	CC
+#chr11   89011046        rs1393350	GG
+#chr11   89017961        rs1126809	GG
+#chr12   89328335        rs12821256	TT
+#chr14   92773663        rs12896399	GT
+#chr14   92801203        rs2402130	GA
+#chr14   92882826        rs17128291	AG
+#chr15   28187772        rs1545397	AA
+#chr15   28197037        rs1800414	TT
+#chr15   28230318        rs1800407	CT
+#chr15   28271775        rs12441727	GG
+#chr15   28288121        rs1470608	GG
+#chr15   28356859        rs1129038	CT
+#chr15   28365618        rs12913832	AG
+#chr15   28453215        rs2238289	AG
+#chr15   28496195        rs6497292	AA
+#chr15   28530182        rs1667394	CT
+#chr15   48426484        rs1426654	AA
+#chr16   89383725        rs3114908	CC
+#chr16   89984378        rs3212355	CC
+#chr16   89985753        rs312262906	CC
+#chr16   89985844        rs1805005	GG
+#chr16   89985918        rs1805006	CC
+#chr16   89985940        rs2228479	GA
+#chr16   89986091        rs11547464	GG
+#chr16   89986117        rs1805007	CC
+#chr16   89986122        rs201326893	CC
+#chr16   89986130        rs1110400	TT
+#chr16   89986144        rs1805008	CC
+#chr16   89986154        rs885479	GG
+#chr16   89986546        rs1805009	GG
+#chr16   90024206        rs8051733	AG
+#chr20   32665748        rs6059655	GG
+#chr20   32785212        rs6119471	CC
+#chr20   33218090        rs2378249	AA
+
+#analyze the 41 SNPs in the saliva bcf file
+/home/classdata/Programs/bcftools-1.9/bcftools view mpileup_saliva.bcf | grep -v "^##" | cut -f 1,2,4,5,10
+
+#STDOUT
+#CHROM  POS     	REF     ALT     sorted_saliva_aligned_pairs.bam
+#chr5    33951693        C       G       0/1:255,0,255
+#chr5    33958959        C       A       0/1:234,0,223
+#chr6    396321  	C       .       0/0
+#chr6    457748  	C       .       0/0
+#chr9    12709305        C       .       0/0
+#chr9    16858084        G       A       0/1:255,0,255
+#chr11   88911696        C       .       0/0
+#chr11   89011046        G       .       0/0
+#chr11   89017961        G       .       0/0
+#chr12   89328335        T       .       0/0
+#chr14   92773663        G       T       1/1:255,255,0
+#chr14   92801203        G       A       1/1:255,255,0
+#chr14   92882826        A       .       0/0
+#chr15   28187772        A       .       0/0
+#chr15   28197037        T       .       0/0
+#chr15   28230318        C       .       0/0
+#chr15   28271775        G       .       0/0
+#chr15   28288121        G       .       0/0
+#chr15   28356859        C       .       0/0
+#chr15   28365618        A       .       0/0
+#chr15   28453215        A       .       0/0
+#chr15   28496195        A       .       0/0
+#chr15   28530182        C       T       1/1:255,255,0
+#chr15   48426484        A       .       0/0
+#chr16   89383725        T       C       0/1:255,0,223
+#chr16   89984378        C       .       0/0
+#chr16   89985753        C       .       0/0
+#chr16   89985844        G       .       0/0
+#chr16   89985918        C       .       0/0
+#chr16   89985940        G       .       0/0
+#chr16   89986091        G       .       0/0
+#chr16   89986117        C       .       0/0
+#chr16   89986122        C       .       0/0
+#chr16   89986130        T       .       0/0
+#chr16   89986144        C       .       0/0
+#chr16   89986154        G       .       0/0
+#chr16   89986546        G       .       0/0
+#chr16   90024206        A       G       0/1:209,0,180
+#chr20   32665748        A       G       1/1:255,255,0
+#chr20   32785212        C       .       0/0
+#chr20   33218090        G       A       0/1:242,0,224
+
+#From this we can compare the genotype (0/0,0/1,1/1) of the sample to the reference/alternate base (0 = ref, 1 = alt) 
+#Chrom   Loc     	Online		Genotype
+#chr5    33951693       rs16891982	CG
+#chr5    33958959       rs28777		CA
+#chr6    396321  	rs12203592	CC
+#chr6    457748  	rs4959270	CC
+#chr9    12709305       rs683		CC
+#chr9    16858084       rs10756819	GA
+#chr11   88911696       rs1042602	CC
+#chr11   89011046       rs1393350	GG
+#chr11   89017961       rs1126809	GG
+#chr12   89328335       rs12821256	TT
+#chr14   92773663       rs12896399	TT
+#chr14   92801203       rs2402130	AA
+#chr14   92882826       rs17128291	AA
+#chr15   28187772       rs1545397	AA
+#chr15   28197037       rs1800414	TT
+#chr15   28230318       rs1800407	CC
+#chr15   28271775       rs12441727	GG
+#chr15   28288121       rs1470608	GG
+#chr15   28356859       rs1129038	CC
+#chr15   28365618       rs12913832	AA
+#chr15   28453215       rs2238289	AA
+#chr15   28496195       rs6497292	AA
+#chr15   28530182       rs1667394	TT
+#chr15   48426484       rs1426654	AA
+#chr16   89383725       rs3114908	TC
+#chr16   89984378       rs3212355	CC
+#chr16   89985753       rs312262906	CC
+#chr16   89985844       rs1805005	GG
+#chr16   89985918       rs1805006	CC
+#chr16   89985940       rs2228479	GG
+#chr16   89986091       rs11547464	GG
+#chr16   89986117       rs1805007	CC
+#chr16   89986122       rs201326893	CC
+#chr16   89986130       rs1110400	TT
+#chr16   89986144       rs1805008	CC
+#chr16   89986154       rs885479	GG
+#chr16   89986546       rs1805009	GG
+#chr16   90024206       rs8051733	AG
+#chr20   32665748       rs6059655	GG
+#chr20   32785212       rs6119471	CC
+#chr20   33218090       rs2378249	GA
+
+#use freebayes to call SNPs and produce a VCF file for each sample
+/home/classdata/Programs/freebayes/bin/freebayes -f hg19.fa sorted_hair_aligned_pairs.bam > freebayes_hair.vcf &
+/home/classdata/Programs/freebayes/bin/freebayes -f hg19.fa sorted_saliva_aligned_pairs.bam > freebayes_saliva.vcf &
+
+#filter the vcf files using the list of SNP targets 'SNP_input.txt'
+/home/classdata/Programs/bcftools-1.9/bcftools filter -T SNP_input.txt freebayes_hair.vcf --report-monomorphic > freebayes_hair_filtered.vcf
+/home/classdata/Programs/bcftools-1.9/bcftools filter -T SNP_input.txt freebayes_saliva.vcf --report-monomorphic > freebayes_saliva_filtered.vcf
+
+#analyze the 41 SNPs in the hair VCF file
+/home/classdata/Programs/bcftools-1.9/bcftools view freebayes_hair_filtered.vcf | grep -v "^##" | cut -f 1,2,4,5,10
+
+#STDOUT
+#CHROM  POS     	REF     ALT     unknown
+#chr5    33951693        C       G       1/1:2060:1,2058:1:18:2058:79170:-7117.42,-618.191,0
+#chr5    33958959        C       A       1/1:602:0,602:0:0:602:22986:-2067.05,-181.22,0
+#chr6    396321  	C       .       0/0:2532:2525:2525:96323:.:.:0
+#chr6    457748  	C       .       0/0:1724:1639:1639:61085:.:.:0
+#chr9    12709305        C       A       1/1:821:1,820:1:20:820:30795:-2767.51,-245.146,0
+#chr9    16858084        G       A       0/1:3592:1402,2190:1402:54132:2190:83652:-6441.57,0,-3785.99
+#chr11   88911696        C       .       0/0:2351:2345:2345:88893:.:.:0
+#chr11   89011046        G       .       0/0:1225:1221:1221:46502:.:.:0
+#chr11   89017961        G       .       0/0:3086:2921:2921:110072:.:.:0
+#chr12   89328335        T       .       0/0:805:805:805:30873:.:.:0
+#chr14   92773663        G       T       0/1:580:339,241:339:12821:241:9076:-642.015,0,-977.509
+#chr14   92801203        G       A       0/1:2137:1186,951:1186:44070:951:35788:-2575.57,0,-3320.46
+#chr14   92882826        A       G       0/1:2387:1287,1098:1287:49185:1098:41485:-3012.9,0,-3705.02
+#chr15   28187772        A       .       0/0:992:982:982:36615:.:.:0
+#chr15   28197037        T       .       0/0:1776:1772:1772:67582:.:.:0
+#chr15   28230318        C       T       0/1:2411:1280,1130:1280:48437:1130:43409:-3178.26,0,-3630.37
+#chr15   28271775        G       .       0/0:2597:2597:2597:100105:.:.:0
+#chr15   28288121        G       .       0/0:701:701:701:26335:.:.:0
+#chr15   28356859        C       T       0/1:2224:857,1360:857:31472:1360:51161:-3931.97,0,-2161.51
+#chr15   28365618        A       G       0/1:3309:1464,1791:1464:53222:1791:68397:-5170.61,0,-3806.65
+#chr15   28453215        A       G       0/1:1544:811,724:811:31079:724:26765:-1944.62,0,-2328.44
+#chr15   28496195        A       .       0/0:2352:2350:2350:90391:.:.:0
+#chr15   28530182        C       T       0/1:1824:894,925:894:33411:925:34857:-2582.52,0,-2453.78
+#chr15   48426484        A       .       0/0:42:42:42:1617:.:.:0
+#chr16   89383725        T       C       1/1:3047:56,2990:56:2145:2990:112048:-9884.03,-723.859,0
+#chr16   89984378        C       .       0/0:102:102:102:3827:.:.:0
+#chr16   89985753        C       .       0/0:559:556:556:20701:.:.:0
+#chr16   89985844        G       .       0/0:759:759:759:28442:.:.:0
+#chr16   89985918        C       .       0/0:762:761:761:28103:.:.:0
+#chr16   89985940        G       A       0/1:762:364,398:364:13338:398:15202:-1138.04,0,-970.533
+#chr16   89986091        G       .       0/0:893:887:887:31674:.:.:0
+#chr16   89986117        C       .       0/0:897:895:895:33103:.:.:0
+#chr16   89986122        C       .       0/0:897:897:897:33597:.:.:0
+#chr16   89986130        T       .       0/0:897:892:892:30918:.:.:0
+#chr16   89986144        C       .       0/0:900:899:899:32305:.:.:0
+#chr16   89986154        G       .       0/0:902:902:902:33025:.:.:0
+#chr16   89986546        G       .       0/0:3139:3133:3133:115829:.:.:0
+#chr20   32665748        A       G       1/1:1844:0,1844:0:0:1844:70210:-6314.37,-555.099,0
+#chr20   32785212        C       .       0/0:2824:2819:2819:107984:.:.:0
+#chr20   33218090        G       A       1/1:1799:0,1799:0:0:1799:68948:-6197.55,-541.553,0
+
+#Note that chr16:90024206 is missing, we will use ** to show that it was inconclusive
+
+#Genotype of hair sample using freebayes
+#Chrom   Loc     	Online		Genotype
+#chr5    33951693       rs16891982	GG
+#chr5    33958959       rs28777		AA
+#chr6    396321  	rs12203592	CC
+#chr6    457748  	rs4959270	CC
+#chr9    12709305       rs683		AA
+#chr9    16858084       rs10756819	GA
+#chr11   88911696       rs1042602	CC
+#chr11   89011046       rs1393350	GG
+#chr11   89017961       rs1126809	GG
+#chr12   89328335       rs12821256	TT
+#chr14   92773663       rs12896399	GT
+#chr14   92801203       rs2402130	GA
+#chr14   92882826       rs17128291	AG
+#chr15   28187772       rs1545397	AA
+#chr15   28197037       rs1800414	TT
+#chr15   28230318       rs1800407	CT
+#chr15   28271775       rs12441727	GG
+#chr15   28288121       rs1470608	GG
+#chr15   28356859       rs1129038	CT
+#chr15   28365618       rs12913832	AG
+#chr15   28453215       rs2238289	AG
+#chr15   28496195       rs6497292	AA
+#chr15   28530182       rs1667394	CT
+#chr15   48426484       rs1426654	AA
+#chr16   89383725       rs3114908	CC
+#chr16   89984378       rs3212355	CC
+#chr16   89985753       rs312262906	CC
+#chr16   89985844       rs1805005	GG
+#chr16   89985918       rs1805006	CC
+#chr16   89985940       rs2228479	GA
+#chr16   89986091       rs11547464	GG
+#chr16   89986117       rs1805007	CC
+#chr16   89986122       rs201326893	CC
+#chr16   89986130       rs1110400	TT
+#chr16   89986144       rs1805008	CC
+#chr16   89986154       rs885479	GG
+#chr16   89986546       rs1805009	GG
+#chr16   90024206       rs8051733	**
+#chr20   32665748       rs6059655	GG
+#chr20   32785212       rs6119471	CC
+#chr20   33218090       rs2378249	AA
+
+#analyze the 41 SNPs in the saliva VCF file
+/home/classdata/Programs/bcftools-1.9/bcftools view freebayes_saliva_filtered.vcf | grep -v "^##" | cut -f 1,2,4,5,10
+
+#CHROM  POS     	REF     ALT     unknown
+#chr5    33951693        C       G       0/1:2746:1247,1496:1247:46849:1496:57666:-4359.91,0,-3387.6
+#chr5    33958959        C       A       0/1:937:465,471:465:17610:471:17945:-1332.18,0,-1302.16
+#chr6    396321  	C       .       0/0:4935:4923:4923:187272:.:.:0
+#chr6    457748  	C       .       0/0:2194:2190:2190:81793:.:.:0
+#chr9    12709305        C       .       0/0:1448:1443:1443:55458:.:.:0
+#chr9    16858084        G       A       0/1:6933:3429,3502:3429:131846:3502:134014:-9965.09,0,-9769.95
+#chr11   88911696        C       .       0/0:3083:3077:3077:116153:.:.:0
+#chr11   89011046        G       .       0/0:2626:2623:2623:99395:.:.:0
+#chr11   89017961        G       .       0/0:4763:4756:4756:179076:.:.:0
+#chr12   89328335        T       .       0/0:889:889:889:34205:.:.:0
+#chr14   92773663        G       T       1/1:895:5,886:5:192:886:33388:-2985.46,-250.889,0
+#chr14   92801203        G       A       1/1:2941:2,2938:2:24:2938:110487:-9933.49,-882.895,0
+#chr14   92882826        A       .       0/0:2963:2958:2958:113435:.:.:0
+#chr15   28187772        A       .       0/0:2310:2274:2274:83938:.:.:0
+#chr15   28197037        T       .       0/0:3009:3005:3005:114603:.:.:0
+#chr15   28230318        C       .       0/0:3384:3379:3379:127976:.:.:0
+#chr15   28271775        G       .       0/0:3544:3537:3537:136194:.:.:0
+#chr15   28288121        G       .       0/0:966:966:966:36319:.:.:0
+#chr15   28356859        C       .       0/0:3604:3596:3596:131893:.:.:0
+#chr15   28365618        A       .       0/0:4805:4591:4591:166063:.:.:0
+#chr15   28453215        A       .       0/0:2083:2073:2073:79349:.:.:0
+#chr15   28496195        A       .       0/0:3391:3389:3389:130841:.:.:0
+#chr15   28530182        C       T       1/1:2567:1,2565:1:19:2565:96981:-8719.9,-770.748,0
+#chr15   48426484        A       .       0/0:58:58:58:2211:.:.:0
+#chr16   89383725        T       C       0/1:4919:2551,2362:2551:96637:2362:88369:-6468.64,0,-7211.33
+#chr16   89984378        C       .       0/0:265:265:265:9911:.:.:0
+#chr16   89985753        C       .       0/0:1191:1191:1191:44362:.:.:0
+#chr16   89985844        G       .       0/0:1523:1523:1523:56895:.:.:0
+#chr16   89985918        C       .       0/0:1530:1526:1526:56171:.:.:0
+#chr16   89985940        G       .       0/0:1530:1524:1524:54744:.:.:0
+#chr16   89986091        G       .       0/0:2492:2483:2483:87992:.:.:0
+#chr16   89986117        C       .       0/0:2496:2475:2475:90825:.:.:0
+#chr16   89986122        C       .       0/0:2498:2496:2496:93265:.:.:0
+#chr16   89986130        T       .       0/0:2499:2490:2490:84452:.:.:0
+#chr16   89986144        C       .       0/0:2503:2495:2495:88896:.:.:0
+#chr16   89986154        G       .       0/0:2503:2499:2499:91259:.:.:0
+#chr16   89986546        G       .       0/0:4531:4528:4528:166730:.:.:0
+#chr16   90024206        A       G       0/1:997:485,510:485:16207:510:18333:-1349.7,0,-1158.48
+#chr20   32665748        A       G       1/1:4596:0,4594:0:0:4594:175086:-15745.6,-1382.93,0
+#chr20   32785212        C       .       0/0:5743:5738:5738:220180:.:.:0
+#chr20   33218090        G       A       0/1:2420:1052,1367:1052:39872:1367:52127:-3959.64,0,-2857.48
+
+#Genotype of saliva sample using freebayes
+#Chrom   Loc     	Online		Genotype
+#chr5    33951693       rs16891982	CG
+#chr5    33958959       rs28777		CA
+#chr6    396321  	rs12203592	CC
+#chr6    457748  	rs4959270	CC
+#chr9    12709305       rs683		CC
+#chr9    16858084       rs10756819	GA
+#chr11   88911696       rs1042602	CC
+#chr11   89011046       rs1393350	GG
+#chr11   89017961       rs1126809	GG
+#chr12   89328335       rs12821256	TT
+#chr14   92773663       rs12896399	TT
+#chr14   92801203       rs2402130	AA
+#chr14   92882826       rs17128291	AA
+#chr15   28187772       rs1545397	AA
+#chr15   28197037       rs1800414	TT
+#chr15   28230318       rs1800407	CC
+#chr15   28271775       rs12441727	GG
+#chr15   28288121       rs1470608	GG
+#chr15   28356859       rs1129038	CC
+#chr15   28365618       rs12913832	AA
+#chr15   28453215       rs2238289	AA
+#chr15   28496195       rs6497292	AA
+#chr15   28530182       rs1667394	TT
+#chr15   48426484       rs1426654	AA
+#chr16   89383725       rs3114908	TC
+#chr16   89984378       rs3212355	CC
+#chr16   89985753       rs312262906	CC
+#chr16   89985844       rs1805005	GG
+#chr16   89985918       rs1805006	CC
+#chr16   89985940       rs2228479	GG
+#chr16   89986091       rs11547464	GG
+#chr16   89986117       rs1805007	CC
+#chr16   89986122       rs201326893	CC
+#chr16   89986130       rs1110400	TT
+#chr16   89986144       rs1805008	CC
+#chr16   89986154       rs885479	GG
+#chr16   89986546       rs1805009	GG
+#chr16   90024206       rs8051733	AG
+#chr20   32665748       rs6059655	GG
+#chr20   32785212       rs6119471	CC
+#chr20   33218090       rs2378249	GA
+
+###R Script to produce plots and calculate average depth
+
+##plot in a 2x2 array
+#par(mfrow=c(2,2))
+#
+##Read lengths of the Hair R1 sample
+#hair_R1 <- read.csv(file="hair_R1_readlengths.txt", sep="", header=FALSE)
+#plot(hair_R1$V2,hair_R1$V1,type="l",xlab="read length",ylab="occurences",col="blue", main="Hair R1")
+#
+##Read lengths of the Hair R2 sample
+#hair_R2 <- read.csv(file="hair_R2_readlengths.txt", sep="", header=FALSE)
+#plot(hair_R2$V2,hair_R2$V1,type="l",xlab="read length",ylab="occurences",col="blue", main="Hair R2")
+#
+##Read lengths of the Saliva R1 sample
+#saliva_R1 <- read.csv(file="saliva_R1_readlengths.txt", sep="", header=FALSE)
+#plot(saliva_R1$V2,saliva_R1$V1,type="l",xlab="read length",ylab="occurences",col="blue", main="Saliva R1")
+#
+##Read lengths of the Saliva R2 sample
+#saliva_R2 <- read.csv(file="saliva_R2_readlengths.txt", sep="", header=FALSE)
+#plot(saliva_R1$V2,saliva_R1$V1,type="l",xlab="read length",ylab="occurences",col="blue", main="Saliva R2")
+#
+##multiply the number of reads by the read length
+#hair_R1$V3 <- hair_R1$V1*hair_R1$V2
+##calculate the mean read length (sum of read lengths/number of reads)
+#sum(hair_R1$V3)/sum(hair_R1$V1)
+#
+##multiply the number of reads by the read length
+#hair_R2$V3 <- hair_R2$V1*hair_R2$V2
+##calculate the mean read length (sum of read lengths/number of reads)
+#sum(hair_R2$V3)/sum(hair_R2$V1)
+#
+##multiply the number of reads by the read length
+#saliva_R1$V3 <- saliva_R1$V1*saliva_R1$V2
+##calculate the mean read length (sum of read lengths/number of reads)
+#sum(saliva_R1$V3)/sum(saliva_R1$V1)
+#
+##multiply the number of reads by the read length
+#saliva_R2$V3 <- saliva_R2$V1*saliva_R2$V2
+##calculate the mean read length (sum of read lengths/number of reads)
+#sum(saliva_R2$V3)/sum(saliva_R2$V1)
+#
+##SNP depth for freebayes on the Hair sample
+#freebayes_hair_coverage <- read.csv(file="freebayes_hair_coverage.txt", sep="", header=FALSE)
+#plot(freebayes_hair_coverage$V2, xlab="SNP", ylab="Depth", main="freebayes Hair Sample")
+#
+##SNP depth for mpileup on the hair sample
+#mpileup_hair_coverage <- read.csv(file="mpileup_hair_coverage.txt", sep="", header=FALSE)
+#plot(mpileup_hair_coverage$V2, xlab="SNP", ylab="Depth", main="mpileup Hair Sample")
+#
+##SNP depth for freebayes on the Saliva sample
+#freebayes_saliva_coverage <- read.csv(file="freebayes_saliva_coverage.txt", sep="", header=FALSE)
+#plot(freebayes_saliva_coverage$V2, xlab="SNP", ylab="Depth", main="freebayes Saliva Sample")
+#
+##SNP depth for mpileup on the Saliva sample
+#mpileup_saliva_coverage <- read.csv(file="mpileup_saliva_coverage.txt", sep="", header=FALSE)
+#plot(mpileup_saliva_coverage$V2, xlab="SNP", ylab="Depth", main="mpileup Saliva Sample")

@@ -1,0 +1,160 @@
+# Lab Assignment 4 - SNP calling
+# -----------------------------------------------
+# Student Name:    Sean Condie
+# Course:          FRSC4800 Bioinformatics
+# Submission Date: November 26th, 2021
+# -----------------------------------------------
+
+#Part 1.
+
+#create vcf files for each bam file using freebayes
+/home/classdata/Programs/freebayes/bin/freebayes -f Dictyostelium_discoideum.dicty_2.7.dna.toplevel.fa sorted_SRR12137022_aligned_pairs.bam > SRR12137022.vcf &
+/home/classdata/Programs/freebayes/bin/freebayes -f Dictyostelium_discoideum.dicty_2.7.dna.toplevel.fa sorted_SRR12137032_aligned_pairs.bam > SRR12137032.vcf &
+
+#merge the two vcf files together
+java -jar picard.jar MergeVcfs I=SRR12137022.vcf I=SRR12137032.vcf O=FREEBAYES_raw.vcf
+
+#filter the freebayes vcf file and create a new file with only 5x coverage
+/home/classdata/Programs/bcftools-1.9/bcftools view -i 'INFO/DP>=5' FREEBAYES_raw.vcf -Ov -o FREEBAYES_5x.vcf
+
+#filter the freebayes vcf file and create a new file with only 10x coverage
+/home/classdata/Programs/bcftools-1.9/bcftools view -i 'INFO/DP>=10' FREEBAYES_raw.vcf -Ov -o FREEBAYES_10x.vcf
+
+#use mpileup and bcftools to analyze and call SNPs, save to a bcf file
+/home/classdata/Programs/bcftools-1.9/bcftools mpileup -Ou -f Dictyostelium_discoideum.dicty_2.7.dna.toplevel.fa \ 
+	sorted_SRR12137022_aligned_pairs.bam sorted_SRR12137032_aligned_pairs.bam \
+	| /home/classdata/Programs/bcftools-1.9/bcftools call -mv -Ob -o MPILEUP_raw.bcf &
+
+#filter the mpileup bcf file for 5x coverage and save to new bcf file
+/home/classdata/Programs/bcftools-1.9/bcftools view -i 'INFO/DP>=5' MPILEUP_raw.bcf > MPILEUP_5x.bcf
+
+#filter the mpileup bcf file for 10x coverage and save to new bcf file
+/home/classdata/Programs/bcftools-1.9/bcftools view -i 'INFO/DP>=10' MPILEUP_raw.bcf > MPILEUP_10x.bcf
+
+#convert the mpileup raw data bcf file to a vcf file
+/home/classdata/Programs/bcftools-1.9/bcftools convert MPILEUP_raw.bcf -Ov -o MPILEUP_raw.vcf
+
+#convert the mpileup 5x data bcf file to a vcf file
+/home/classdata/Programs/bcftools-1.9/bcftools convert MPILEUP_5x.bcf -Ov -o MPILEUP_5x.vcf
+
+#convert the mpileup 10x data bcf file to a vcf file
+/home/classdata/Programs/bcftools-1.9/bcftools convert MPILEUP_10x.bcf -Ov -o MPILEUP_10x.vcf
+
+#count number of SNPs in the freebayes raw vcf by counting the number of lines that do not (-v) begin with (^) '#'. This excludes header lines from being counted
+/home/classdata/Programs/bcftools-1.9/bcftools view FREEBAYES_raw.vcf | grep -v "^#" | wc -l
+
+#STDOUT
+105439
+
+#count number of SNPs in the freebayes 5x coverage vcf by counting the number of lines that do not (-v) begin with (^) '#'. This excludes header lines from being counted
+/home/classdata/Programs/bcftools-1.9/bcftools view FREEBAYES_5x.vcf | grep -v "^#" | wc -l
+
+#STDOUT
+93029
+
+#count number of SNPs in the freebayes 10x coverage vcf by counting the number of lines that do not (-v) begin with (^) '#'. This excludes header lines from being counted
+/home/classdata/Programs/bcftools-1.9/bcftools view FREEBAYES_10x.vcf | grep -v "^#" | wc -l
+
+#STDOUT
+63959
+
+#count number of SNPs in the mpileup raw vcf by counting the number of lines that do not (-v) begin with (^) '#'. This excludes header lines from being counted
+/home/classdata/Programs/bcftools-1.9/bcftools view MPILEUP_raw.vcf | grep -v "^#" | wc -l
+
+#STDOUT
+53271
+
+#count number of SNPs in the mpileup 5x coverage vcf by counting the number of lines that do not (-v) begin with (^) '#'. This excludes header lines from being counted
+/home/classdata/Programs/bcftools-1.9/bcftools view MPILEUP_5x.vcf | grep -v "^#" | wc -l
+
+#STDOUT
+52716
+
+#count number of SNPs in the mpileup 10x coverage vcf by counting the number of lines that do not (-v) begin with (^) '#'. This excludes header lines from being counted
+/home/classdata/Programs/bcftools-1.9/bcftools view MPILEUP_10x.vcf | grep -v "^#" | wc -l
+
+#STDOUT
+51779
+
+#Part 2.
+
+#Create a plot in R showing the trend between coverage and SNP callers
+#First we use excel to save the coverage data as a simple tab delineated text doc called "data_table.txt"
+#R script follows here:
+#	#collect the data
+#	data <- read.delim("data_table.txt")
+#
+#	#load ggplot
+#	library(ggplot2)
+#
+#	#penalize scientific notation
+#	options(scipen=10000)
+#
+#	#create the plot
+#	ggplot(data, aes(x=rev(Coverage), y=num_SNPs, colour=SNP_Caller, group=SNP_Caller)) + #reverse the order of the coverage data
+# 		geom_point() + #add points to the graph
+# 		geom_smooth(method = "lm", se=FALSE) + #add trend line
+# 		ggtitle("SNP Caller Comparison") + #add a title
+# 		theme(plot.title = element_text(hjust = 0.5)) + #center align the title
+# 		xlab("Coverage") + #add x axis label
+# 		ylab("Number of SNPs") + #add y axis label
+# 		labs(color="SNP Caller") + #add legend title
+# 		scale_x_discrete(labels=c("10x" = "raw", "5x" = "5x","raw" = "10x")) #reverse the x axis tick labels since we reversed the data
+#End of R script
+
+#The plot was saved as "Data_Graph.png" and is available on the server
+
+#ANS: We can see that as we increase the minimum coverage that fewer SNPs are called. This is the case for both mpileup and freebayes.
+#However, freebayes is much more liberal in SNP calling since it called close to double the number of SNPs when coverage is not limited. 
+#freebayes is also effected quite dramatically by the increase in minimum coverage whereas mpileup shows only a small reduction in SNPs as minimum coverage increases.
+#After looking through the documentation, it seems that freebayes does not limit the maximum depth while mpileup limits maximum depth to 250.
+#Please note that in the older samtools version of mpileup this limit was 8000 but was changed to 250 in the new bcftools mpileup, which I used.
+#This could be a contributing factor to the dramatic difference in number of SNPs called between the two programs. 
+#To test this we could filter the freebayes data to exclude all SNPs with greater than 250 depth.
+
+#filter the freebayes_raw vcf file and create a new file with max depth = 250
+/home/classdata/Programs/bcftools-1.9/bcftools view -i 'INFO/DP<250' FREEBAYES_raw.vcf -Ov -o FREEBAYES_raw_250.vcf
+
+#count number of SNPs in the freebayes_raw_250 vcf by counting the number of lines that do not (-v) begin with (^) '#'. This excludes header lines from being counted
+/home/classdata/Programs/bcftools-1.9/bcftools view FREEBAYES_raw_250.vcf | grep -v "^#" | wc -l
+
+#STDOUT
+103819
+
+#this gives a difference of 105439 - 103819 = 1620. This difference will be the same for the other two coverages as well producing 91409 for 5x and 62339 for 10x
+#obviously this only accounts for a small portion of the difference. 
+#This led me to believe that mpileup has much more strict quality checks on lower coverage reads. For example, SNP's with low coverage must have high quality, whereas SNPs with high coverage can have lower quality.
+#I then though that mpileup could also be simply ignoring a large portion of reads based on some assumptions of the program. 
+#After researching these questions I found that mpileup, by default, ignores "anomalous read pairs" or "orphans". freebayes could be including these reads and I was unable to find a clear answer to this.
+#We could rerun mpileup with the -A tag (which includes the orphans) and compare that result to our freebayes data to see if it is a possibility. 
+#In terms of quality checks, the freebayes documentation clearly states that it does not make assumptions for you so it is up to you to ignore low quality reads. mpileup, by default, excludes SNPs with base quality less than 13.
+#it is now clear that a large portion of the differences are explained by assumptions made by the program and how the user manipulates these defaults.
+#So, in comparing SNP callers, it is critical that they are set up to use the same assumptions. 
+#Freebayes makes it clear that they leave assumptions up to the user which requires a more advanced user, while mpileup attempts to simplify this process for less advanced users.
+
+#check the minimum depth for mpileup by using grep to find the first SNP with depth = 1
+/home/classdata/Programs/bcftools-1.9/bcftools view -i 'INFO/DP=1' MPILEUP_raw.vcf | grep -v "^#" | head -n 1
+
+#STDOUT
+#1       1158929 .       T       A       14.2146 .       DP=1;SGB=-0.157211;MQ0F=0;AC=2;AN=2;DP4=0,0,0,1;MQ=44   GT:PL   ./.:0,0,0       1/1:41,3,0
+
+#check the minimum depth for mpileup by using grep to find the first SNP with depth = 1
+/home/classdata/Programs/bcftools-1.9/bcftools view -i 'INFO/DP=1' FREEBAYES_raw.vcf | grep -v "^#" | head -n 1
+
+#STDOUT
+#
+
+#check the minimum depth for mpileup by using grep to find the first SNP with depth = 2
+/home/classdata/Programs/bcftools-1.9/bcftools view -i 'INFO/DP=2' FREEBAYES_raw.vcf | grep -v "^#" | head -n 1
+
+#STDOUT
+#1       96      .       NNNNN   ACAGC   18.07   .       AB=0;ABP=0;AC=2;AF=1;AN=2;AO=2;CIGAR=5X;DP=2;DPB=2;DPRA=0;EPP=7.35324;EPPR=0;GTI=0;LEN=5;MEANALT=1;MQM=19;MQMR=0;NS=1;NUMALT=1;ODDS=4.14165;PAIRED=1;PAIREDR=0;PAO=0;PQA=0;PQR=0;PRO=0;QA=82;QR=0;RO=0;RPL=0;RPP=7.35324;RPPR=0;RPR=2;RUN=1;SAF=0;SAP=7.35324;SAR=2;SRF=0;SRP=0;SRR=0;TYPE=complex   GT:DP:AD:RO:QR:AO:QA:GL 1/1:2:0,2:0:0:2:82:-3.60488,-0.60206,0
+
+#ANS: We can see that the minimum depth of mpileup and freebayes are 1 and 2, respectively.
+
+#ANS: vcftools statistics
+#1. Allele frequency using --freq of each SNP site
+#2. Heterozygosity of each individual using --het which also analyzes inbreeding by calculating an F statistic
+#3. Relatedness using --relatedness which calculates a value between 0 (not related) and 1 (identical) 
+#4. Detect singletons using --singletons which identifies individuals with unique mutations
+

@@ -1,0 +1,308 @@
+# Lab Assignment 1 - Metabarcoding with UNIX
+# -----------------------------------------------
+# Student Name:    Sean Condie
+# Course:          FRSC4800 Bioinformatics
+# Submission Date: September 30th, 2021
+# -----------------------------------------------
+
+#Part 1. Download and Unzip Blast
+#---------------------------------------------------
+
+#1.1
+#Create a working directory
+mkdir Metabarcoding_Assignment 
+#navagate to the new directory
+cd Metabarcoding_Assignment 
+
+#1.2
+#print the path to the working directory
+pwd
+#STDOUT
+#/home/seancondie/Metabarcoding_Assignment
+
+#1.3
+#Download the BLAST comand line tool
+wget https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ncbi-blast-2.12.0+-x64-linux.tar.gz
+
+#ANS:
+#We make sure to download the most up-to-date linux version since the server we are downloading it to is running linux.
+#Other versions are for other operating systems.
+
+#1.4
+#Unzip the downloaded file
+tar -xf ncbi-blast-2.12.0+-x64-linux.tar.gz
+
+#1.5
+#List the contents and ownership of the unzipped folder
+ls -l ncbi-blast-2.12.0+
+
+#STDOUT
+#total 40
+#drwxr-xr-x+ 2 seancondie student_accounts  4096 Jun  4 04:24 bin
+#-rw-r--r--+ 1 seancondie student_accounts    85 Jun  4 04:24 ChangeLog
+#drwxrwxr-x+ 2 seancondie student_accounts  4096 Jun  4 07:44 doc
+#-rw-r--r--+ 1 seancondie student_accounts  1055 Jun  4 04:24 LICENSE
+#-rw-r--r--+ 1 seancondie student_accounts 18636 Jun  4 04:24 ncbi_package_info
+#-rw-r--r--+ 1 seancondie student_accounts   465 Jun  4 04:24 README
+
+#1.6
+#Print the last line of the LICENSE file
+grep "^ " ncbi-blast-2.12.0+/LICENSE | tail -n -1 #select all non-empty lines (which all start with a space) then select the last line
+
+#STDOUT
+#Please cite the author in any work or product based on this material.
+
+#1.7
+#Run makeblastdb within the bin subdirectory
+cd ncbi-blast-2.12.0+/bin/ #navigate to the bin subfolder
+makeblastdb -h #run makeblastdb
+
+#STDOUT
+#USAGE
+#  makeblastdb [-h] [-help] [-in input_file] [-input_type type]
+#    -dbtype molecule_type [-title database_title] [-parse_seqids]
+#    [-hash_index] [-mask_data mask_data_files] [-mask_id mask_algo_ids]
+#    [-mask_desc mask_algo_descriptions] [-gi_mask]
+#    [-gi_mask_name gi_based_mask_names] [-out database_name]
+#    [-max_file_sz number_of_bytes] [-logfile File_Name] [-taxid TaxID]
+#    [-taxid_map TaxIDMapFile] [-version]
+#
+#DESCRIPTION
+#   Application to create BLAST databases, version 2.2.31+
+#
+#Use '-help' to print detailed descriptions of command line arguments
+
+-----------------------------------------------------
+
+#Part 2. Download and examine the metabarcoding files
+-----------------------------------------------------
+
+#2.1
+#make a subdirectory for the data
+cd ~/Metabarcoding_Assignment #navigate to the proper directory
+mkdir Data #make the Data subfolder
+
+#2.2
+#Copy the data from host directory
+cd Data #navigate to the folder where we want to copy the data to
+cp -r /home/classdata/Lab1/. ./ #recursivly copy the contents of Lab1 to the current directory
+
+#2.3
+#Examine the files to check if they are seq. or int.
+head -n 3 *.fasta #print the first three lines of each .fasta file
+
+#STDOUT
+#>AAAB01003942 Eukaryota; __Opisthokonta; __Metazoa; __Arthropoda; __Hexapoda; __Insecta; __Anopheles; __Anopheles_gambiae_str._PEST
+#TCAAATGTCTGCCCTATCAACTATTGATGGTAGTGTAGAGGACTACCATGGTTGCGACGG
+#GTAACGGGGAATCAGGGTTCGATTCCGGAGAGGGAGCCTGAGAAATGGCTACCACATCCA
+#
+#==> C.03.M.fasta <==
+#>C.03.M_3 HBGHO3E02I2FWT orig_bc=AGCACTGTAG new_bc=AGCACTGTAG bc_diffs=0
+#AAAGCCATGCATGTCTAAGCACATGCCTTAATACGGTGAAAGCCGCGAAATAGCTCATTACAACAGCCACCGTTTACTAGAATATAGTTATCCTACTTGGATAACTGTGGCAATTCTAGAGCTAAATACATGCAAAAAAGCTCTGCCCGCAAGGAACGAGCGCATTTTTATTTAGGAATAAAAAACCAATCGGGTTTTCGGCCCGTAATTTGGTGAATCCTGAATAACTTTGCCAATCGCACAGT
+#>C.03.M_12 HBGHO3E02HAVS8 orig_bc=AGCACTGTAG new_bc=AGCACTGTAG bc_diffs=0
+#
+#==> O.01.M.fasta <==
+#>O.01.M_27 HBGHO3E02HW9DA orig_bc=TGATACGTCT new_bc=TGATACGTCT bc_diffs=0
+#AAAGCCATGCATGTCTAAGCACAAGCCCCTTGAATGGTGAAAAGCCGCGAAATGGCTCATTACAACAGCCCATAGTTTATTAGATCTTTACATCCTACTTGGATAGCTGTGGTAATTCTAGAGCTAAATACATGCGTCAAGCTCAGACCTTACGGAATGAGCGCATTTTGTTAGTACAAACCATCGGGCTTCGGTCCGCCATTTGGTGAATCTGAATAACTTTTGCTGATCGCACGGTCTCGTACCGGCGACAAATC
+#>O.01.M_113 HBGHO3E02H7SP4 orig_bc=TGATACGTCT new_bc=TGATACGTCT bc_diffs=0
+
+#ANS:
+#We can see that the third line of 97_Silva_111_rep_set_euk_with_taxa.fasta is sequence data rather than a header for the next sequence meaning it is interleaved. 
+#The third line of C.03.M.fasta and O.01.M.fasta is the header of the next sequence meaning it is sequential.
+
+#Store file information in Data_info.txt
+ls -l *.fasta > Data_info.txt #create a text file out of the fasta file info
+
+#We can use nano to open Data_info.txt and add if each file is seq. or int. and also format it better
+
+#print the resulting file
+cat Data_info.txt
+
+#STDOUT
+#File: 97_Silva_111_rep_set_euk_with_taxa.fasta
+#Size: 29240888
+#Type: Interleaved
+#
+#File: C.03.M.fasta
+#Size: 5411321
+#Type: Sequential
+#
+#File: O.01.M.fasta
+#Size: 3832848
+#Type: Sequential
+
+#2.4
+#Count the number of sequences in each file. To do this, search for the number of lines starting with ">" since each sequence has a header that starts with ">"
+#search for number of sequences in 97_Silva_111_rep_set_euk_with_taxa.fasta
+grep "^>" 97_Silva_111_rep_set_euk_with_taxa.fasta | wc -l 
+#STDOUT
+#15882
+#search for number of sequences in C.03.M.fasta
+grep "^>" C.03.M.fasta | wc -l #search for number of sequences in C.03.M.fasta
+#STDOUT
+#12344
+#search for number of sequences in O.01.M.fasta
+grep "^>" O.01.M.fasta | wc -l 
+#STDOUT
+#8982
+
+#ANS: there are 15882 sequences in 97_Silva_111_rep_set_euk_with_taxa.fasta, 12344 in C.03.M.fasta, and 8982 in O.01.M.fasta
+
+#2.5
+#Run BLAST commands
+ln -s /home/seancondie/Metabarcoding_Assignment/ncbi-blast-2.12.0+/bin/makeblastdb #Make a symbolic link to makeblastdb
+./makeblastdb -in 97_Silva_111_rep_set_euk_with_taxa.fasta -dbtype nucl -title custom_silva_db -out Silva_97 #run the provided command
+
+#2.6
+ls -hlrt #list all files with date created
+#STDOUT
+#total 47M
+#-rw-r--r--+ 1 seancondie student_accounts  28M Sep 16 11:32 97_Silva_111_rep_set_euk_with_taxa.fasta
+#-r-xr-xr-x+ 1 seancondie student_accounts 355K Sep 16 11:32 UNIX_cheat_sheet.pdf
+#-rw-r--r--+ 1 seancondie student_accounts 3.7M Sep 16 11:32 O.01.M.fasta
+#-rw-rw-r--+ 1 seancondie student_accounts 5.2M Sep 16 11:32 C.03.M.fasta
+#-rw-rw-r--+ 1 seancondie student_accounts  182 Sep 22 10:57 Data_info.txt
+#lrwxrwxrwx  1 seancondie student_accounts   76 Sep 22 15:03 makeblastdb -> /home/seancondie/Metabarcoding_Assignment/ncbi-blast-2.12.0+/bin/makeblastdb
+#-rw-rw-r--+ 1 seancondie student_accounts 6.5M Sep 22 15:04 Silva_97.nsq
+#-rw-rw-r--+ 1 seancondie student_accounts 187K Sep 22 15:04 Silva_97.nin
+#-rw-rw-r--+ 1 seancondie student_accounts 3.0M Sep 22 15:04 Silva_97.nhr
+#-rw-rw-r--+ 1 seancondie student_accounts  20K Sep 22 15:04 Silva_97.ndb
+#-rw-rw-r--+ 1 seancondie student_accounts 187K Sep 22 15:04 Silva_97.not
+#-rw-rw-r--+ 1 seancondie student_accounts  63K Sep 22 15:04 Silva_97.nto
+#-rw-rw-r--+ 1 seancondie student_accounts  16K Sep 22 15:04 Silva_97.ntf
+
+#ANS: We can see that 7 files were created
+
+-----------------------------------------------------
+
+#Part 3. Conducting a local BLAST search
+-----------------------------------------------------
+
+#3.1
+#Create a symbolic link to blastn
+ln -s /home/seancondie/Metabarcoding_Assignment/ncbi-blast-2.12.0+/bin/blastn
+
+#3.2
+#Execute the BLAST searches
+./blastn -db Silva_97 -num_descriptions 50 -query C.03.M.fasta -out C.03.M.fasta.SILVA_blastn.out #compare C.03.M.fasta to the Silva_97 database
+./blastn -db Silva_97 -query O.01.M.fasta -outfmt '6 qseqid stitle pident evalue' -num_alignments 1 -out O.01.M.fasta.SILVA_outfmt_6.blastn.out #compare O.01.M.fasta to the Silva_97 database
+
+#ANS:
+#blastn, in general, compares the nucleotides in our sequences to the nucleotides in a database of sequences.
+#The first command compares the sequences in C.03.M.fasta to the Silva_97 database that we created. we specify the database with the "-db" command and the target sequences with the "-query" command. 
+#We also use "num_descriptions" to list the top matches, based on statistical significance, according to the number selected. In our case we choose to list the top 50. 
+#The default output format is used and the name of the file we save the results to follows the "-out" command.
+#The second command compares the sequences in O.01.M.fasta to the Silva_97 database that we created. Simmilar to the first command, each are specifies with the same commands "-db" and "-query"
+#In contrast to the first search, here we specify the output format to be '6', meaning tabular. The next commands, qseqid, stitle, pident, and evalue, specify what information we want in the table.
+#qseqid will add the query sequency ID. stitle will add the subject title. pident will add the percentage of identical nucleotide matches. evalue will add the statistical significance.
+#we again specify the file we would like to save the output to after "-out".
+
+#Run the blast search on C.03.M.fasta again to create a similar table to the results for O.01.M.fasta
+./blastn -db Silva_97 -query C.03.M.fasta -outfmt '6 qseqid stitle pident evalue' -num_alignments 1 -out C.03.M.fasta.SILVA_outfmt_6.blastn.out
+
+#Count the number of blast hits in the O.01.M output file
+cat O.01.M.fasta.SILVA_outfmt_6.blastn.out | wc -l
+#STDOUT
+#9029
+
+#ANS: There are 9029 BLAST hits in the O.01.M.fasta.SILVA_outfmt_6.blastn.out file
+
+#3.3
+#examine C.03.M.fasta blast output for number of entries
+cat C.03.M.fasta.SILVA_outfmt_6.blastn.out | wc -l
+#STDOUT
+#12356
+
+#ANS: there are 12356 BLAST hits in the C.03.M.fasta.SILVA_outfmt_6.blastn.out file
+
+#search for any query sequences with duplicate hits
+cut -f1 C.03.M.fasta.SILVA_outfmt_6.blastn.out | sort | uniq -d
+#STDOUT
+#C.03.M_112941
+#C.03.M_123783
+#C.03.M_124927
+#C.03.M_1426
+#C.03.M_146406
+#C.03.M_161553
+#C.03.M_183066
+#C.03.M_208862
+#C.03.M_29629
+#C.03.M_58607
+#C.03.M_83035
+#C.03.M_92845
+#C.03.M_92855
+
+#search for one of the duplicated results
+grep "C.03.M_112941" C.03.M.fasta.SILVA_outfmt_6.blastn.out
+#STDOUT
+#C.03.M_112941   EF023230 Eukaryota; __SAR; __Rhizaria; __Cercozoa; __RT5iin19; __uncultured_Eimeriidae  94.118  3.00e-52
+#C.03.M_112941   EF023230 Eukaryota; __SAR; __Rhizaria; __Cercozoa; __RT5iin19; __uncultured_Eimeriidae  95.775  5.20e-25
+
+#ANS:
+#There are several lines in the BLAST results where the unique query sequence was matched more than once. 
+#For C.03.M_112941 this seems to be an odd case where the sequece hits the same gene on the same species. This could be due to a highly repetative sequence.
+#In other cases, where multiple species are represented by the same query sequence, we are unable to confidently say which species it belongs to between them.
+#However, we are able to infer which it is more likely to be using the evalue.
+
+#So in our blast result of the C.03.M sample, we have 13 sequences that we are unsure of the true species. Despite this, it is important to still include them all.
+#This is because we are only concerened if there is a chance that it could be a TRV vector species. So, in reality, these multi-hit sequences aren't of much concern.
+
+#3.4
+#Search the C.03.M BLAST results for the vector specie Trichodorus
+grep "Trichodorus" C.03.M.fasta.SILVA_outfmt_6.blastn.out | wc -l #number of Trichodorus hits in the C.03.M sample
+#STDOUT
+#31
+#Search the O.01.M BLAST results for the vector specie Trichodorus
+grep "Trichodorus" O.01.M.fasta.SILVA_outfmt_6.blastn.out | wc -l #number of Trichodorus hits in the O.01.M sample
+#STDOUT
+#1
+#Search the C.03.M BLAST results for the vector specie Paratrichodorus
+grep "Paratrichodorus" C.03.M.fasta.SILVA_outfmt_6.blastn.out | wc -l #number of Paratrichodorus hits in the C.03.M sample
+#STDOUT
+#0
+#Search the O.01.M BLAST results for the vector specie Paratrichodorus
+grep "Paratrichodorus" O.01.M.fasta.SILVA_outfmt_6.blastn.out | wc -l #number of Paratrichodorus hits in the O.01.M sample
+#STDOUT
+#0
+
+#ANS:
+#From these results we can see that the TRV vector, Trichodorus, was detected in 32 samples. 
+#It is worth noting that the C.03.M sample has 31 hits while the O.01.M sample has only 1. 
+#This means this vector is of more concern in the C.03.M sample location and of little concern in the O.01.M sample location.
+#The TRV vector, Paratrichodorus, was undetected in both samples meaning it is of little concern to either sample locations.
+
+#We can find the proportion of vector hits by dividing the vector hits by the total hits in the BLAST results: 
+#C.03.M = (31/12356) * 100 = 0.25%
+#O.01.M = (1/9029) * 100 = 0.011%
+
+#3.5
+#Find the top 5 hits in the BLAST search results for C.03.M
+#cut out the species ID, sort it, count the number of unique entries, sort again according to the numeric value in reverse order, only print the top 5
+cut -f2 C.03.M.fasta.SILVA_outfmt_6.blastn.out | sort | uniq -c | sort -nr | head -n 5
+#STDOUT
+#3186 GU901865 Eukaryota; __Opisthokonta; __Metazoa; __Annelida; __Family_Incertae_Sedis; __Enchytraeidae; __Cernosvitoviella; __Cernosvitoviella_minor
+#2182 Y17766 Eukaryota; __Archaeplastida; __Chloroplastida; __Charophyta; __Phragmoplastophyta; __Streptophyta; __Embryophyta; __Tracheophyta; __Spermatophyta; __Magnoliophyta; __Lamiales; __Avicennia; __Avicennia_marina
+#1276 EF024795 Eukaryota; __Archaeplastida; __Chloroplastida; __Charophyta; __Phragmoplastophyta; __Streptophyta; __Embryophyta; __Tracheophyta; __Spermatophyta; __Magnoliophyta; __Liliopsida; __Restionaceae_environmental_sample
+#1240 FJ537328 Eukaryota; __SAR; __Stramenopiles; __Peronosporomycetes; __Halophytophthora; __uncultured_Hyaloperonospora
+#977 EF023363 Eukaryota; __Opisthokonta; __Metazoa; __Arthropoda; __Chelicerata; __Arachnida; __Limulidae; __Limulidae_environmental_sample
+
+#Find the top 5 hits in the BLAST search results for O.01.M
+#cut out the species ID, sort it, count the number of unique entries, sort again according to the numeric value in reverse order, only print the top 5
+cut -f2 O.01.M.fasta.SILVA_outfmt_6.blastn.out | sort | uniq -c | sort -nr | head -n 5 
+#STDOUT
+#3144 AY552968 Eukaryota; __Opisthokonta; __Metazoa; __Nematoda; __Enoplea; __Diphterophoridae; __Diphtherophora; __Diphtherophora_obesus
+#1664 EF024795 Eukaryota; __Archaeplastida; __Chloroplastida; __Charophyta; __Phragmoplastophyta; __Streptophyta; __Embryophyta; __Tracheophyta; __Spermatophyta; __Magnoliophyta; __Liliopsida; __Restionaceae_environmental_sample
+#1278 DY293474 Eukaryota; __Archaeplastida; __Chloroplastida; __Charophyta; __Phragmoplastophyta; __Streptophyta; __Embryophyta; __Tracheophyta; __Spermatophyta; __Magnoliophyta; __Sapindales; __Citrus; __Citrus_clementina
+#883 U59956 Eukaryota; __Archaeplastida; __Chloroplastida; __Charophyta; __Phragmoplastophyta; __Streptophyta; __Embryophyta; __Tracheophyta; __Spermatophyta; __Magnoliophyta; __Lamiales; __Orthocarpus; __Orthocarpus_luteus
+#350 EF023232 Eukaryota; __Archaeplastida; __Chloroplastida; __Charophyta; __Phragmoplastophyta; __Streptophyta; __Embryophyta; __Tracheophyta; __Amb-18S-533; __Phaseoleae; __Phaseoleae_environmental_sample
+
+#ANS: The top species in the C.03.M sample is Cernosvitoviella minor, the top species in the O.01.M is Diphtherophora obesus
+
+#check for the vector species in the top 5 hits from C.03.M
+cut -f2 C.03.M.fasta.SILVA_outfmt_6.blastn.out | sort | uniq -c | sort -nr | head -n 5 | grep -w "Trichodorus\|Paratrichodorus"
+#STDOUT *was blank, meaning no results*
+#check for the vector species in the top 5 hits from O.01.M
+cut -f2 O.01.M.fasta.SILVA_outfmt_6.blastn.out | sort | uniq -c | sort -nr | head -n 5 | grep -w "Trichodorus\|Paratrichodorus"
+#STDOUT *was blank, meaning no results*
+
+#ANS: from these results we can see that the vector species is not present in the top 5 species in either sample
